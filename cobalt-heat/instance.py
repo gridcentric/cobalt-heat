@@ -35,6 +35,9 @@ class Instance(heat.engine.resources.instance.Instance):
 
     properties_schema = {'ImageId': {'Type': 'String',
                                      'Required': True},
+                         'GuestParams': {'Type': 'List',
+                                         'Schema': {'Type': 'Map',
+                                                    'Schema': tags_schema}},
                          'KeyName': {'Type': 'String'},
                          'AvailabilityZone': {'Type': 'String'},
                          'DisableApiTermination': {'Type': 'String',
@@ -51,13 +54,8 @@ class Instance(heat.engine.resources.instance.Instance):
                                        'Implemented': False},
                          'SecurityGroups': {'Type': 'List'},
                          'SecurityGroupIds': {'Type': 'List'},
-                         'NetworkInterfaces': {'Type': 'List'},
                          'SourceDestCheck': {'Type': 'Boolean',
                                              'Implemented': False},
-                         'SubnetId': {'Type': 'String'},
-                         'Tags': {'Type': 'List',
-                                  'Schema': {'Type': 'Map',
-                                             'Schema': tags_schema}},
                          'NovaSchedulerHints': {'Type': 'List',
                                                 'Schema': {
                                                     'Type': 'Map',
@@ -66,8 +64,7 @@ class Instance(heat.engine.resources.instance.Instance):
                          'Tenancy': {'Type': 'String',
                                      'AllowedValues': ['dedicated', 'default'],
                                      'Implemented': False},
-                         'UserData': {'Type': 'String'},
-                         'Volumes': {'Type': 'List'}}
+                         'UserData': {'Type': 'String'}}
 
     attributes_schema = {'AvailabilityZone': ('The Availability Zone where the'
                                               ' specified instance is '
@@ -117,12 +114,12 @@ class Instance(heat.engine.resources.instance.Instance):
 
         live_image = self._lookup_live_image(image_name)
 
-        tags = {}
-        if self.properties['Tags']:
-            for tm in self.properties['Tags']:
-                tags[tm['Key']] = tm['Value']
+        guest_params = {}
+        if self.properties['GuestParams']:
+            for tm in self.properties['GuestParams']:
+                guest_params[tm['Key']] = tm['Value']
         else:
-            tags = None
+            guest_params = None
 
         scheduler_hints = {}
         if self.properties['NovaSchedulerHints']:
@@ -133,12 +130,14 @@ class Instance(heat.engine.resources.instance.Instance):
 
         server = None
         try:
-            server = live_image.launch(
+            server = live_image.start_live_image(
                 name=self.physical_resource_name(),
+                guest_params=guest_params,
                 key_name=key_name,
                 security_groups=security_groups,
                 user_data=self.get_mime_string(userdata),
-                availability_zone=availability_zone)[0]
+                availability_zone=availability_zone,
+                scheduler_hints=scheduler_hints)[0]
         finally:
             # Avoid a race condition where the thread could be cancelled
             # before the ID is stored
@@ -194,13 +193,6 @@ class Instance(heat.engine.resources.instance.Instance):
         key_name = self.properties.get('KeyName', None)
         if key_name:
             nova_utils.get_keypair(self.nova(), key_name)
-
-        # check validity of security groups vs. network interfaces
-        security_groups = self._get_security_groups()
-        if security_groups and self.properties.get('NetworkInterfaces'):
-            raise exception.ResourcePropertyConflict(
-                'SecurityGroups/SecurityGroupIds',
-                'NetworkInterfaces')
 
         # make sure the image exists.
         image_name = self.properties['ImageId']
