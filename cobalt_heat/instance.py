@@ -200,6 +200,13 @@ class Instance(heat.engine.resources.instance.Instance):
         if not live_image:
             return "Live-Image not found: %s" % image_name
 
+    def _detach_volumes_task(self):
+        '''
+        No-op task, needed to use superclass implementations
+        of handle_delete and handle_suspend.
+        '''
+        return scheduler.PollingTaskGroup([])
+
 def resource_mapping():
     return {
         'OS::Cobalt::Instance': Instance,

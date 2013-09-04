@@ -18,7 +18,6 @@ from distutils.core import setup
 
 VERSION = os.environ.get("VERSION", '0.1')
 PACKAGE = os.environ.get("PACKAGE", None)
-DESTDIR = os.environ.get("DESTDIR", '')
 
 if not(PACKAGE) or PACKAGE == "cobalt-heat":
     setup(name='cobalt-heat',
@@ -27,4 +26,4 @@ if not(PACKAGE) or PACKAGE == "cobalt-heat":
           author='Gridcentric Inc.',
           author_email='support@gridcentric.com',
           url='http://www.gridcentric.com/',
-          packages=['cobalt-heat'])
+          packages=['cobalt_heat'])
